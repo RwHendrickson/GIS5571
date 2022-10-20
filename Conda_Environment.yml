@@ -1,0 +1,30 @@
+name: gis5571
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python =3.10
+  - bokeh
+  - pip
+  - geopandas
+  - descartes
+  - ipython
+  - ipywidgets
+  - jupyterlab
+  - pysal
+  - nbconvert
+  - networkx
+  - scikit-learn
+  - scikit-gstat
+  - seaborn
+  - statsmodels
+  - rasterio
+  - folium
+  - cenpy
+  - splot
+  - contextily
+  - rioxarray
+  - geopy
+  - django
+  - keplergl
+  - laspy
