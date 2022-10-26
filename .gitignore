@@ -102,3 +102,6 @@ Final_Project/2_Model_Air_Exposure/template.npy
 *.laz
 Lab02/Part_2_Tiles/raw_LiDAR_Data_README.rtf
 Lab02/Part_2_Tiles/tile_index_map.pdf
+Final_Project/1_Data_IO/Data/Read_me.docx
+*.xlsx
+Final_Project/1_Data_IO/PointSourceAirEmissionsInventory/Read_me.docx
