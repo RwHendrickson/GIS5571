@@ -161,3 +161,12 @@ Final_Project/Final_Write_Up/LaTeX/Final_Draft.run.xml
 Final_Project/Final_Write_Up/LaTeX/Final_Draft.synctex.gz
 Final_Project/Final_Write_Up/Rob's GIS5571 Peer Review.pdf
 Final_Project/Final_Write_Up/First_Draft.pdf
+Final_Project/1_Data_IO/.ipynb_checkpoints/Prepping-checkpoint.ipynb
+*.csv
+Final_Project/1_Data_IO/Prepping.ipynb
+Final_Project/3_Environmental_Hazard_Cost_Surface/.ipynb_checkpoints/1_Combine_Exposure-checkpoint.ipynb
+Final_Project/3_Environmental_Hazard_Cost_Surface/.ipynb_checkpoints/2_Check_Tests-checkpoint.ipynb
+Final_Project/4_Validate_Cost_Surface/.ipynb_checkpoints/1_Interpolate_PurpleAir-checkpoint.ipynb
+Final_Project/4_Validate_Cost_Surface/.ipynb_checkpoints/2_Compare_Model_and_PurpleAir-checkpoint.ipynb
+Final_Project/4_Validate_Cost_Surface/.ipynb_checkpoints/Full Spatial Regression-checkpoint.ipynb
+Final_Project/4_Validate_Cost_Surface/Full Spatial Regression.ipynb
