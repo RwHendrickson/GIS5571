@@ -1,0 +1,608 @@
+\documentclass[article,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb, amsfonts,amsthm}
+\usepackage[fleqn]{amsmath} % Math packages
+\numberwithin{equation}{section}
+\usepackage{listings}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+%\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+%\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{enumerate}
+\usepackage[usenames,dvipsnames]{color} % Required for custom colors
+\usepackage{listings} % Required for insertion of code
+\usepackage{courier} % Required for the courier font
+\usepackage{tikz} 
+\usepackage{sectsty}
+\usepackage{multicol} % Required for multiple columns
+%\usepackage{tabu} % Option for Table Construction
+\usepackage{epigraph} 
+\setlength{\epigraphwidth}{\textwidth}
+\usepackage{hologo}
+\usepackage[font=small,labelfont=bf]{caption} % Specifying Captions
+\usepackage{multirow} % TAbles
+\usepackage{changepage} % Change margins
+\usepackage{makecell} % TAbular line breaks
+
+
+\usepackage{blindtext}
+\usepackage{setspace} % Spacing
+\usepackage{csquotes}% Recommended
+\usepackage{psvectorian} % Cool ornaments
+
+\usepackage{hyperref} % hyper links
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=cyan,
+	pdftitle={Lab03\_Part1},
+	pdfpagemode=FullScreen,
+	citecolor= black
+}
+
+\urlstyle{same}
+
+
+\renewcommand{\baselinestretch}{1.5} % Spacing
+
+\usepackage[style = numeric, sorting = none, backend=biber]{biblatex}
+\addbibresource{references.bib}
+
+\usepackage{graphicx}
+\graphicspath{{figs/}} %Setting the graphicspath
+
+
+\begin{document}
+
+\begin{center}
+Lab Report
+
+Title: Lab1\\
+Notice: Dr. Bryan Runck\\
+Author: Rob Hendrickson\\
+Date: 11/02/2022\\~\\
+
+Repository: \url{https://github.com/RwHendrickson/GIS5571/tree/main/Lab03/Part_1}\\
+Time Spent: 15 hours
+
+\end{center}
+
+\section*{Abstract}
+In this lab, I performed sensitivity analysis on walk-ability cost surfaces for the area around Minnesota's Whitewater State Park. The problem statement section provides contextual information and requirements for analysis. The input data section will describe the different datasets acquired in this exercise. The methods section includes detailed visual and textual descriptions of the workflow conducted. The results section will present some visualizations of the surfaces and cost paths that were computed. This report concludes with a discussion on the lessons learned and future directions of this work.
+
+
+\section{Problem Statement}
+The client of this project is a fictional character named Dory who lives on a farm near the borders of Olmsted, Wabasha, and Winona counties. She enjoys walking to the North Picnic Area of Whitewater State Park from time to time. Her journey is often quite enjoyable, however, it can also be quite treacherous if she chooses the wrong route at the wrong time of year. Her largest concerns are muddy farm fields in the spring and water bodies if there isn't a bridge (or she has her waders). Otherwise, she just prefers the most gradual slope. On the following page is a map of her journey and a table of the requirements to analyze her best routes.
+
+\begin{adjustwidth}{-.7in}{-.7in}
+	\begin{center}
+\fbox{ % Workflow
+	\begin{minipage}{.9\linewidth}
+		\begin{center}
+			\begin{minipage}{\linewidth}
+				\includegraphics[width=\linewidth]{DoryTrip}
+			\end{minipage}
+			\captionof{figure}{A map of the study area with trip origin, destination, and water highlighted.}
+		\end{center}
+	\end{minipage}
+}
+\end{center}
+\end{adjustwidth}
+\begin{adjustwidth}{-.88in}{-.88in}
+
+{
+	\scriptsize
+	\begin{tabular}{|l|p{.09\linewidth}|p{.17\linewidth}|p{.065\linewidth}|p{.1\linewidth}|p{.28\linewidth}|p{.15\linewidth}|}
+	\hline	& \textbf{Requirement} & \textbf{Defined As} & \textbf{Data (Spatial)} & \textbf{Data} \newline \textbf{(Attribute)} & \textbf{Dataset} & \textbf{Preparation} \\ \hline
+		1 &  Data Acquisition      &    Request  Light Detection and Ranging (LiDAR), land use, road, and waterway data                                                             & Point clouds, polygons, polylines  \vspace{.04in}        &   Elevation, MLCCS Code                                            &  \href{https://resources.gisdata.mn.gov/pub/data/elevation/lidar/}{Minnesota Dept. of Natural Resources}\newline
+			(LiDAR)\newline \href{https://gisdata.mn.gov/dataset/biota-landcover-mlccs}{Minnesota Land Cover Classification System}\newline	(MLCCS) \newline \href{https://gisdata.mn.gov/dataset/trans-aadt-traffic-count-locs}{Minnesota Dept. of Transportation}\newline
+	 (MnDoT)\newline \href{https://gisdata.mn.gov/dataset/water-mn-public-waters}{Minnesota Dept. of Natural Resources}\newline (Public Waters)                                                                                                           &       Navigated API trees \\ \hline
+	   2 & Process Data & Clip to extent, merge LiDAR tiles,  select relevant land classifications, erase roads from waterways & Point Cloud, polygons,  polylines & Elevation, Classification Code, Watercourse Name & LiDAR Point Clouds, MLCCS Agricultural Land, Public Watercourses minus Public Roadways & Decompress LiDAR files, Study MLCCS coding scheme, Explore Public Water Basin \\ \hline	   
+	   3 & Synthesize data & Make all information interoperable & Rasters & Max Elevation (Centimeter) \newline is\_field (binary) \newline is\_water\_no\_bridge (binary) & Rasterized elevation \newline Rasterized Fields \newline Rasterized Waterways without bridges & Verify processed data \\ \hline
+		4 & Calculate Elevation Cost & Compute slope degrees from elevation              &    Raster                                     &   Slope Degree                                                & Rasterized Slope Degree                                                                                                                                                                                                        & Compute the gradient of the elevation raster            \\ \hline
+		5 &  Transform Slope Degree & Logarithmic transform of left-tailed slope degree values & Raster & Transformed Slope Degree & Rasterized Log Slope Degree & Explore distribution of elevation and slope \\ \hline
+		6 & Normalize     & Ensure that all values are in a similar range with appropriate sign                                                           & Rasters         &  Normalized log slope degree (float) \newline is\_water\_no\_bridge (binary) \newline is\_field (binary)                                               &         Rasterized Log-norm slope degree \newline is\_water\_no\_bridge \newline is\_field                                                                                                       &       Explored distribution of values \\ \hline
+		7 & Simulate Cost Surface Creation                            & Interate through linear combinations between the 3 rasters with weights that sum up to 1 &    Raster               &     Walk-ability Cost                                             &    Cost Surface                                                                                                                                        &             \\ \hline
+		8 & Cost Path Analysis &   Compute Least Cost Paths for each cost surface            &  Rasters                                       &                                                  &    Least Cost Path                                                                                                                                                                                                     &   Study least cost path analysis           \\ \hline
+		9 & Uncertainty Analysis & Compare cost surfaces and least cost paths              &    Rasters and Polylines                                     &  Walk-ability Cost                                                 &   Cost Surface, Least Cost Path                                                                                                                                                                                                    &  Vectorize least cost paths           \\ \hline      
+	\end{tabular}
+\captionof{table}{Project requirements}}
+\end{adjustwidth}
+
+\section{Input Data}
+\indent The LiDAR data acquired from the Minnesota Department of Natural Resources (MnDNR) were 20 LiDAR tiles from Wabasha, Winona, and Olmsted counties. The full list of tiles is in figure 2 and were determined using each county's respective file title, \texttt{tile\_index\_map.pdf}. These tiles contain geographic information, classification (water, ground, bridge, vegetation, etc), and elevation. 
+\\
+\indent The polygons acquired from Minnesota Land Cover Classification System (MLCCS) contained classifications based on the MLCCS coding scheme. 
+\\
+\indent Another dataset from MnDNR was the public watercourses and basins of Minnesota. This was combined with the public roads from the Minnesota Department of Transportation (MnDoT) to create the water cost layers. \\
+\indent Their API links can be found in table 2. \vspace{.5in}
+
+\begin{adjustwidth}{-.3in}{-.3in}
+\begin{multicols}{2}
+
+\fbox{ % Tilelist
+	\begin{minipage}{.6\linewidth}
+		\begin{center}
+			\begin{minipage}{\linewidth}
+				\includegraphics[width=\linewidth]{tilelist}
+			\end{minipage}
+			\captionof{figure}{Full list of LiDAR tiles in the format (county, tile id)}
+		\end{center}
+	\end{minipage}
+}\\
+
+{
+	\scriptsize
+	\begin{tabular}{|l|p{.17\linewidth}|p{.18\linewidth}|p{.52\linewidth}|}
+	& \textbf{Title}                              & \textbf{Purpose in Analysis}     & \textbf{Download Link} \\ \hline
+	1 & MnDNR LiDAR Tiles & Determining slope & \url{https://resources.gisdata.mn.gov/pub/data/elevation/lidar/county/}  \newline      \\                 
+	2 & MLCCS Land Cover Classifications     & Determining location of fields & \url{https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_dnr/biota_landcover_mlccs/shp_biota_landcover_mlccs.zip} \newline \\
+	3 & MnDNR Public Waters & Determining location of water & \url{https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_dnr/water_mn_public_waters/shp_water_mn_public_waters.zip} \newline       \\                 
+	4 & MnDoT Annual Average Daily Traffic (AADT)     & Determining location of bridges & \url{https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_dot/trans_aadt_traffic_segments/shp_trans_aadt_traffic_segments.zip}                                                         
+\end{tabular}
+\captionof{table}{Data Sources}}
+\end{multicols}
+
+\section{Methods}
+\end{adjustwidth}
+
+\fbox{ % Workflow
+	\begin{minipage}{\linewidth}
+		\begin{center}
+			\begin{minipage}{\linewidth}
+				\includegraphics[width=\linewidth, height=.75\paperheight]{WorkFlow1}
+			\end{minipage}
+			\captionof{figure}{Detailed Workflow}
+		\end{center}
+	\end{minipage}
+}\\
+\fbox{ % Workflow
+	\begin{minipage}{\linewidth}
+		\begin{center}
+			\begin{minipage}{\linewidth}
+				\includegraphics[width=\linewidth, height=.4\paperheight]{WorkFlow2}
+			\end{minipage}
+			\captionof{figure}{Data IO and Processing of Fields and Water}
+		\end{center}
+	\end{minipage}
+}\\
+
+\subsection{Data Input/Output}
+
+\subsubsection{MnDNR (LiDaR)}
+\begin{adjustwidth}{-.8in}{-.8in}
+	\begin{multicols}{2}
+		
+To diagnose which LiDAR tiles were needed from MnDNR, the tile index maps were consulted from each county. An example of this map can be found here: \url{https://resources.gisdata.mn.gov/pub/data/elevation/lidar/county/winona/tile_index_map.pdf}. This list of tiles was iterated over and their respective \texttt{.laz} files were requested and written to disk. These files were decompressed into \texttt{.las} files utilizing Arcpy's ConvertLas function. Code to accomplish these tasks is provided in figures 5 and 6.
+
+	\fbox{
+		\begin{minipage}{.95\linewidth}
+				\begin{center}
+						\begin{minipage}{1\linewidth}
+								\includegraphics[width=\linewidth]{downloadlaz}
+							\end{minipage}
+						\captionof{figure}{Iteratively interfacing with MnDNR's API}
+					\end{center}
+			\end{minipage}
+	}
+
+\end{multicols}
+\end{adjustwidth}
+	\fbox{ 
+		\begin{minipage}{.95\linewidth}
+			\begin{center}
+				\begin{minipage}{1\linewidth}
+					\includegraphics[width=\linewidth]{convertlaz}
+				\end{minipage}
+				\captionof{figure}{Iteratively converting \texttt{.laz} files to \texttt{.las} files}
+			\end{center}
+		\end{minipage}
+	}\\
+
+
+Once the files were in a \texttt{.las} format, they could be accessed with the Python library, \href{https://laspy.readthedocs.io/en/latest/index.html}{\texttt{laspy}}. The library claims to work with \texttt{.laz} files but it didn't work with my version. The extent of all the tiles was ascertained with the code in figure 7. This information was used to create a template raster for analysis (see section 3.2). It should be noted that the \texttt{.las} units are in centimeters.
+
+\fbox{ 
+	\begin{minipage}{.95\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{getextent1}
+				\includegraphics[width=\linewidth]{getextent2}
+			\end{minipage}
+			\captionof{figure}{Getting the extent of all \texttt{.las} tiles}
+		\end{center}
+	\end{minipage}
+}\\
+
+\subsubsection{MLCCS}
+
+Land cover from MLCCS was accessed through the Minnesota Geospatial Commons's API. This link can be found in table 2. A zip file was downloaded and the shapefile within titled, \texttt{landcover\_minnesota\_land\_cover\_classification\_system.shp}, was read into Geopandas. Here it was clipped to the extent of the template raster (see section 3.2) and selected for the classification, 22 (agricultural land). This selected GeoDataFrame was saved in a \texttt{.geojson} format. The code that clips, selects, and saves is provided in figure 8.
+
+
+
+
+\begin{adjustwidth}{-.7in}{-.7in}
+	\fbox{
+	\begin{minipage}{1\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{clip}
+			\end{minipage}
+			\\
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{selectsave}
+			\end{minipage}
+			\captionof{figure}{Clipping, selecting, and saving the land cover dataset.}
+		\end{center}
+	\end{minipage}
+}\\
+\end{adjustwidth}
+\newpage
+\subsubsection{Water, No Bridge}
+
+Water and road spatial information was obtained from the Minnesota Geospatial Commons' API much in the same way as the MLCCS data. These links can be found in table 2. After clipping to the extent of the study, the roads were buffered 30 meters and the geometric difference was taken between the water and the buffered roads. The resulting GeoDataFrame was saved in a \texttt{.geojson} format. The code that performs the geometric difference is provided in figure 9, and the saved file is visualized in figure 10.
+
+
+
+
+\begin{adjustwidth}{-.7in}{-.7in}
+	\fbox{
+		\begin{minipage}{1\linewidth}
+			\begin{center}
+				\begin{minipage}{1\linewidth}
+					\includegraphics[width=\linewidth]{GeomDiff}
+				\end{minipage}
+				\captionof{figure}{Taking the geometric difference.}
+			\end{center}
+		\end{minipage}
+	}\\
+\fbox{
+	\begin{minipage}{1\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{waternobridge}
+			\end{minipage}
+			\captionof{figure}{A map highlighting the bridges and segment indices of the split waterways.}
+		\end{center}
+	\end{minipage}
+}\\
+\end{adjustwidth}
+
+\subsection{Creating Raster Template}
+
+Upon identifying the extent of the \texttt{.las} files, the height and width of the study was computed. These were used to calculate dimensions of a regular grid of 10 meter resolution for the space. This grid was saved in both a Geotiff raster format and numpy mgrid. The code that executes these operations is in figures 10 - 14.
+
+\begin{adjustwidth}{-.8in}{-.8in}
+	\begin{multicols}{2}
+		\fbox{
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{getdimensions}
+					\end{minipage}
+					\captionof{figure}{Calculating width and height of study extent.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{ 
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{createraster}
+					\end{minipage}
+					\captionof{figure}{Computing number of cells in each dimension for raster.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{save_geotiff}
+					\end{minipage}
+					\captionof{figure}{A function for saving a geotiff file.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{ 
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{savetemplate}
+					\end{minipage}
+					\captionof{figure}{Saving the template raster.}
+				\end{center}
+			\end{minipage}
+		}\\
+	\end{multicols}
+\end{adjustwidth}
+\newpage
+\subsection{Aggregate and Rasterize}
+
+\subsubsection{Elevation}
+
+To get a full elevation raster, the \texttt{.las} files were iterated over. Each was read using the \texttt{laspy} library and rasterized using Rasterio's \texttt{features.rasterize} function. This function does not have an average values option when merging points into a cell, so their elevations were sorted in ascending order and the \href{https://rasterio.readthedocs.io/en/latest/api/rasterio.enums.html#rasterio.enums.MergeAlg}{merge algebra}, 'REPLACE' was used. This effectively burned the largest \texttt{.las} point value for each cell into the template raster's format and saved it as a geotiff. Once complete, all intermediate rasters were summed up and overlapping cells were averaged. Code that accomplishes these tasks are in figures 15 and 16. This final raster was saved as a geotiff called, \texttt{full\_elevation.tif}.
+\newpage
+		\fbox{
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{rasterizeelev}
+					\end{minipage}
+					\captionof{figure}{Iteratively rasterizing the \texttt{.las} files.}
+				\end{center}
+			\end{minipage}
+		}\\
+	\begin{center}
+		\fbox{ 
+			\begin{minipage}{.6\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{loadintelevs}
+						\includegraphics[width=\linewidth]{mergeelev}
+					\end{minipage}
+					\captionof{figure}{Merging intermediate elevation rasters.}
+				\end{center}
+			\end{minipage}
+		}
+	\end{center}
+
+\subsubsection{Fields and Water, No Bridge}
+
+The fields geojson was loaded as a Geopandas Geodataframes and rasterized using the same process as 3.3.1 (without the iteration) and saved as \texttt{rasterized\_fields.tif}.
+
+The water, no bridge geojson was also rasterized in a similar manner to Fields and Elevation, however, the parameter, \texttt{all\_touched} was set to True to close of diagonal water jumps in the cost path analysis.
+
+Originally, the LiDAR data was used to determine water. The \texttt{laspy.read()} objects have a classification attribute which yields a numpy array of each point's classification. 2 indicated ground, 9 indicated water, and 14 indicated bridge decks. There is also 8 (model keypoint) and 12 (overlapping points) which could be utilized in future projects. No bridge decks were identified in any of the MnDNR's \texttt{.las} files so this route was abandoned.
+
+\subsection{Transform and Normalize Costs}
+\begin{adjustwidth}{0in}{-.8in}
+	\begin{multicols}{2}
+Each of the final rasters, \texttt{full\_elevation.tif}, \texttt{water\_no\_bridge.tif}, and \texttt{rasterized\_fields.tif} were transformed and/or normalized to align with Dory's preferences. All magnitudes were between 0 and 1 and higher values indicated a higher cost. They were saved in the same format as the template using the function in figure 17.\\ 
+
+~\columnbreak
+\fbox{
+	\begin{minipage}{.9\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{savegeotifftotemplate}
+			\end{minipage}
+			\captionof{figure}{A function to save an array to a template raster.}
+		\end{center}
+	\end{minipage}
+}
+
+	\end{multicols}
+\end{adjustwidth}
+\subsubsection{Slope}
+
+To calculate slope, first the gradient was calculated using Numpy's gradient function on the elevation (in meters) and then this was converted into slope degrees (see code in figure 18). The distribution of values was found to be heavily tailed (see figure 19) so it was transformed using $log_{10}$ which produced a multimodal distribution. The logged slope values were further transformed by shifting values by the minimum value. Finally they were normalized by the maximum value to achieve the "standardized" slope cost surface (code in figure 20, distribution in figure 21). \enlargethispage{\baselineskip}
+\begin{adjustwidth}{-.8in}{-.8in}
+	\begin{multicols}{2}
+		\fbox{
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{getslope}
+					\end{minipage}
+					\captionof{figure}{Computing slope degrees.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{ 
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{slopedist}
+					\end{minipage}
+					\captionof{figure}{Distribution of slope degree values.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{transformslope}
+					\end{minipage}
+					\captionof{figure}{Transforming and normalizing slope degree.}
+				\end{center}
+			\end{minipage}
+		}\\
+		\fbox{ 
+			\begin{minipage}{.95\linewidth}
+				\begin{center}
+					\begin{minipage}{1\linewidth}
+						\includegraphics[width=\linewidth]{finalslopedist}
+					\end{minipage}
+					\captionof{figure}{Final distribution of transformed and normalized slope.}
+				\end{center}
+			\end{minipage}
+		}\\
+	\end{multicols}
+\end{adjustwidth}
+
+\subsubsection{Water and Fields}
+
+The water and fields binary rasters were ensured to be 1 (if field or water) and 0 otherwise. 
+\newpage
+\subsection{Cost Surface Computation}
+
+	All weights between costs were standardized to be between 0 and 1. Weights combinations (by increments of 0.1) were generated using code in figure 22. These weights combinations were iterated through and multiplied by the respective cost rasters. The resulting summation of the weighted rasters was saved with the title format \texttt{\_\_S-\_\_W-\_\_F-Cost\_Surface.tif} where the blanks coincide with the percentage that raster was weighted (S = Slope, W = Water, F = Fields). This code can be seen in figure 23.
+	
+\begin{adjustwidth}{-.8in}{-.8in}
+\begin{multicols}{2}
+	\fbox{ 
+		\begin{minipage}{.95\linewidth}
+			\begin{center}
+				\begin{minipage}{1\linewidth}
+					\includegraphics[width=\linewidth]{weightscombos}
+				\end{minipage}
+				\captionof{figure}{Creating weights combinations for cost surface creation.}
+			\end{center}
+		\end{minipage}
+	}\\	
+	\fbox{ 
+		\begin{minipage}{.95\linewidth}
+			\begin{center}
+				\begin{minipage}{1\linewidth}
+					\includegraphics[width=\linewidth]{costsurfacecomp}
+				\end{minipage}
+				\captionof{figure}{Iterating through weights combinations and saving resulting cost surfaces.}
+			\end{center}
+		\end{minipage}
+	}
+
+
+\end{multicols}
+\end{adjustwidth}
+\newpage
+\subsection{Cost Path Analysis}
+
+First, features of start and end coordinates were created. In Arcpy the spatial analyst functions \texttt{CostDistance()} and \texttt{CostPath()} were performed on each cost surface, excluding those without slope as these could not lead to a single best cost path. The necessary parameters and code to perform these steps is given in figure 24.
+
+\fbox{ 
+	\begin{minipage}{.95\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{costpath}
+			\end{minipage}
+			\captionof{figure}{Code to iteratively calculate least cost paths on a cost surface.}
+		\end{center}
+	\end{minipage}
+}
+\newpage
+\subsection{Uncertainty Analysis}
+
+Select cost surfaces and paths were visualized using matplotlib's pcolormesh plot to understand how varying the weights effected the cost surface. An example function that creates this type of visualization can be found in figure 25. There was an addendum to this code which calculates the cost of a path, vectorizes it, and plots it as well (see figure 26). 
+
+\fbox{ 
+	\begin{minipage}{.95\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{sixplot}
+			\end{minipage}
+			\captionof{figure}{Function to plot six cost surfaces.}
+		\end{center}
+	\end{minipage}
+}
+
+\fbox{ 
+	\begin{minipage}{.95\linewidth}
+		\begin{center}
+			\begin{minipage}{1\linewidth}
+				\includegraphics[width=\linewidth]{vectorizepath}
+			\end{minipage}
+			\captionof{figure}{This code vectorizes a cost path, calculates its cost, and plots it}
+		\end{center}
+	\end{minipage}
+}
+\newpage
+\section{Results}
+
+\begin{adjustwidth}{-.8in}{-.8in}
+	\begin{center}
+	\fbox{ 
+		\begin{minipage}{.72\linewidth}
+			\begin{center}
+				\begin{minipage}{1\linewidth}
+					\includegraphics[width=1\linewidth]{No Water Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Cost Surfaces with no weight on water cost.}
+			\end{center}
+		\end{minipage}
+	}\\
+	\fbox{ 
+		\begin{minipage}{.72\linewidth}
+			\begin{center}
+				\begin{minipage}{\linewidth}
+					\includegraphics[width=1\linewidth]{No Field Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Cost Surfaces with no weight on field cost.}
+			\end{center}
+		\end{minipage}
+	}\\
+	\fbox{ 
+		\begin{minipage}{.72\linewidth}
+			\begin{center}
+				\begin{minipage}{\linewidth}
+					\includegraphics[width=\linewidth]{50 Percent Weighted Slope Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Cost Surfaces with 50\% weight on slope cost.}
+			\end{center}
+		\end{minipage}
+	}\\
+	\fbox{ 
+		\begin{minipage}{.72\linewidth}
+			\begin{center}
+				\begin{minipage}{\linewidth}
+					\includegraphics[width=\linewidth]{50 Percent Weighted Water Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Cost Surfaces with 50\% weight on water cost.}
+			\end{center}
+		\end{minipage}
+	}\\
+	\fbox{ 
+		\begin{minipage}{.72\linewidth}
+			\begin{center}
+				\begin{minipage}{\linewidth}
+					\includegraphics[width=\linewidth]{50 Percent Weighted Field Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Cost Surfaces with 50\% weight on field cost.}
+			\end{center}
+		\end{minipage}
+	}\\
+\fbox{ 
+	\begin{minipage}{1\linewidth}
+		\begin{center}
+			\begin{minipage}{1.0\linewidth}
+				\includegraphics[width=1.05\linewidth]{Cost Paths by Weight Category}
+			\end{minipage}
+			\captionof{figure}{Cost paths for the most extremely weighted surfaces plotted over each cost layer.}
+		\end{center}
+	\end{minipage}
+}\\
+	\fbox{ 
+		\begin{minipage}{.95\linewidth}
+			\begin{center}
+				\begin{minipage}{\linewidth}
+					\includegraphics[width=\linewidth]{Seasonal Cost Surfaces}
+				\end{minipage}
+				\captionof{figure}{Proposed cost surfaces for each season.}
+			\end{center}
+		\end{minipage}
+	}\\
+\end{center}
+\end{adjustwidth}
+
+Visually the results appear to be accurate.
+
+\section{Discussion and Conclusion}
+
+In this lab I took the next steps to improve the work done in Lab02. This involved improving the water cost layer and calculating least cost paths. 
+
+Since the water layer was full of holes in the last assignment, I decided to go ahead and use some official bridge and water data. This payed off quite well and created a pretty realistic water layer. The data that was employed definitely skipped over all the secret bridges that I'm sure Dory knows about, though.
+
+All in all, there were 18 unique cost paths produced by the 66 cost surfaces and none of them varied far from the path of most gradual slope. I think this goes to show that perhaps the layers weren't weighted properly. For example, none of the cost paths utilized a bridge and the water layer only really altered the end of the trip (see figure 32, Cost Paths by Field Weight). The fields did affect the path significantly, however (Compare winter to other seasons in figure 33). Don't even get me started on cost!
+
+Upon completing this lab, I am much more familiar with cost path analysis!
+%\begingroup           % Ctrl T to uncomment
+%\setstretch{1}
+%\setlength\bibitemsep{12pt}  % length between two different entries
+%\printbibliography
+%\endgroup
+
+\section*{Self Score}
+\setstretch{.2}
+\begin{tabular}{|p{.2\linewidth}|p{.2\linewidth}|p{.2\linewidth}|p{.1\linewidth}|}
+	\hline
+	\textbf{Category}            & \textbf{Description}                                                                                                                                                                                                                                                                                                                                              & \textbf{Points Possible} & \textbf{Score} \\ \hline
+\vspace{.2in}\textbf{Structural Elements} & {\tiny All elements of a lab report are included (2 points each): Title, Notice: Dr. Bryan Runck, Author, Project Repository, Date, Abstract, Problem Statement, Input Data w/ tables, Methods w/ Data, Flow Diagrams, Results, Results Verification, Discussion and Conclusion, References in common format, Self-score}                                        & \vspace{.2in}28              &   \vspace{.2in}24    \\ \hline
+	\vspace{.2in}\textbf{Clarity of Content}  & {\tiny Each element above is executed at a professional level so that someone can understand the goal, data, methods, results, and their validity and implications in a 5 minute reading at a cursory-level, and in a 30 minute meeting at a deep level (12 points). There is a clear connection from data to results to discussion and conclusion (12 points).} & \vspace{.2in}24              &  \vspace{.2in}22     \\ \hline
+	\vspace{.2in}\textbf{Reproducibility}     & {\tiny Results are completely reproducible by someone with basic GIS training. There is no ambiguity in data flow or rationale for data operations. Every step is documented and justified.}                                                                                                                                                                     & \vspace{.2in}28              &     \vspace{.2in}28  \\ \hline
+	\vspace{.2in}\textbf{Verification}        & {\tiny Results are correct in that they have been verified in comparison to some standard. The standard is clearly stated (10 points), the method of comparison is clearly stated (5 points), and the result of verification is clearly stated (5 points).}                                                                                                      & \vspace{.2in}20              &   \vspace{.2in}15   \\ \hline
+	&                                                                                                                                                                                                                                                                                                                                                          & \vspace{.02in}100             &   \vspace{.02in}  89   \\ \hline
+\end{tabular}
+\end{document}

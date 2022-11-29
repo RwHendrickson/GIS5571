@@ -28,3 +28,4 @@ dependencies:
   - django
   - keplergl
   - laspy
+  - scikit-image
